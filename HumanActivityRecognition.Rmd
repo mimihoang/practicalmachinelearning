@@ -1,0 +1,87 @@
+---
+title: "Human Activity Recognition Model"
+author: "Mimi Hoang"
+date: "September 20, 2014"
+output: html_document
+---
+
+### Description
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+The goal of this assignment is to predict the manner in which they did the exercise.
+
+
+### Summary
+
+For this assignment, I've picked random forest classification to build the model because it has methods for balancing error in class population unbalanced data sets. 
+
+### Steps to build and test the model
+
+1. Load the following libraries into R
+```{r}
+library(caret)
+library(randomForest)
+library(kernlab)
+```
+
+2. Download training and test files
+```{r}
+trainingUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+trainingFile <- "./data/training.csv"
+testUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+testFile <- "./data/testing.csv"
+
+# download training and test files
+download.file(trainingUrl, trainingFile, method="curl")
+download.file(testUrl, testFile, method="curl")
+```
+3. Prepare Data
+
+Read in the training data and do some cleaning - remove variables that are not deemed important predictors (ie: col 1-6) and also remove any variables with NAs
+
+```{r}
+trainingData <- read.csv("./data/training.csv", na.strings = c("", " ", "NA", "NULL"))
+trainingNA <- apply(trainingData, 2, function(x) {sum(is.na(x))})
+cleanTraining <- trainingData[,which(trainingNA == 0)]
+cleanTraining <- cleanTraining[-(1:6)]
+
+```
+4. Choose an algorithm
+
+The training data is splitted into training and cross validation sets in the ratio 70:30. I pick random forest classification to create the model because it's easy to intepret the result and it has good predictive accuracy. The model yields a .27% error rate, which is very low.
+
+```{r}
+inTrain <- createDataPartition(y = cleanTraining$classe, p = 0.7, list = FALSE)
+training <- cleanTraining[inTrain, ]
+crossVal <- cleanTraining[-inTrain, ]
+
+model <- randomForest(classe ~ ., data = training)
+
+# check the model for error rate, which shows only .27%
+model
+```
+5. Choose a validation method
+
+Run the model against the cross validation data set and generate a confusionMatrix to get the accuracy rate. It shows a 99.8% accuracy rate. 
+```{r}
+predictCrossVal <- predict(model, crossVal)
+confusionMatrix(crossVal$classe, predictCrossVal)
+```
+6. Run the model against the test data set to predict the outcomes
+
+Load and clean the test data set, similar to what we did with the training data at the top. After that run it against the model to get the prediction. 
+
+```{r}
+testData <- read.csv("./data/testing.csv", na.strings= c("", " ", "NA", "NULL"))
+testNA <- apply(testData, 2, function(x) {sum(is.na(x))})
+cleanTest <- testData[,which(testNA == 0)]
+cleanTest <- testData[-(1:6)]
+
+predictTest <- predict(model, cleanTest)
+
+#Print out the prediction for each test record
+predictTest
+
+```
+
